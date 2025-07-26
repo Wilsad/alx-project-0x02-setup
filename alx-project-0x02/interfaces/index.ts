@@ -9,3 +9,9 @@ export interface ApiResponse<T> {
     message: string;
     success: boolean;
 }
+
+export interface CardProps {
+    title: string;
+    content: string;
+    className?: string;
+}
