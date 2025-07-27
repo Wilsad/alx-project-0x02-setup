@@ -1,5 +1,4 @@
 import React from 'react';
-import { GetStaticProps } from 'next';
 import UserCard from '@/components/common/UserCard';
 import { ApiUser } from '@/interfaces';
 
