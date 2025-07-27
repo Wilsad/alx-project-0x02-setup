@@ -32,3 +32,15 @@ export interface User {
     onClose: () => void;
     onSubmit: (post: Omit<Post, 'id' | 'createdAt'>) => void;
   }
+  
+  // Button component props interface
+  export interface ButtonProps {
+    children: React.ReactNode;
+    size: 'small' | 'medium' | 'large';
+    shape: 'rounded-sm' | 'rounded-md' | 'rounded-full';
+    variant?: 'primary' | 'secondary' | 'outline' | 'danger';
+    disabled?: boolean;
+    onClick?: () => void;
+    type?: 'button' | 'submit' | 'reset';
+    className?: string;
+  }
