@@ -60,13 +60,13 @@ export default function Posts() {
   };
 
   // Handle post deletion (only for user-created posts)
-  const handleDeleteUserPost = (postId: string) => {
-    setUserPosts(prev => prev.filter(post => post.id !== postId));
+  const handleDeleteUserPost = (postId: string | number) => {
+    setUserPosts(prev => prev.filter(post => post.id !== String(postId)));
   };
 
   // Handle API post deletion (simulated)
   const handleDeleteApiPost = (postId: number) => {
-    setApiPosts(prev => prev.filter(post => post.id !== postId));
+    setApiPosts(prev => prev.filter(post => post.id !== Number(postId)));
   };
 
   // Filter API posts based on search term
