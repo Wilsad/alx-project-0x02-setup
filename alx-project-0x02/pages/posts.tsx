@@ -1,59 +1,54 @@
 import React, { useState, useEffect } from 'react';
 import Header from '@/components/layout/Header';
-import Card from '@/components/common/Card';
+import PostCard from '@/components/common/PostCard';
 import Button from '@/components/common/Button';
 import PostModal from '@/components/common/PostModal';
-import { type Post } from '@/interfaces';
+import { type Post, type ApiPost, type PostProps } from '@/interfaces';
 
 export default function Posts() {
-  const [posts, setPosts] = useState<Post[]>([]);
+  const [apiPosts, setApiPosts] = useState<PostProps[]>([]);
+  const [userPosts, setUserPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [error, setError] = useState<string | null>(null);
 
-  // Sample posts data (in a real app, this would come from an API)
+  // Fetch posts from JSONPlaceholder API
   useEffect(() => {
-    const samplePosts: Post[] = [
-      {
-        id: '1',
-        title: 'Getting Started with Next.js',
-        content: 'Next.js is a powerful React framework that enables you to build full-stack web applications. It provides many features out of the box including server-side rendering, static site generation, and API routes.',
-        createdAt: new Date('2024-01-15'),
-      },
-      {
-        id: '2',
-        title: 'TypeScript Best Practices',
-        content: 'TypeScript adds static typing to JavaScript, making your code more reliable and easier to maintain. Here are some best practices for writing clean, maintainable TypeScript code in your projects.',
-        createdAt: new Date('2024-01-20'),
-      },
-      {
-        id: '3',
-        title: 'Tailwind CSS for Rapid Styling',
-        content: 'Tailwind CSS is a utility-first CSS framework that allows you to build custom designs without writing custom CSS. Learn how to use Tailwind effectively in your Next.js projects.',
-        createdAt: new Date('2024-01-25'),
-      },
-      {
-        id: '4',
-        title: 'Component Architecture in React',
-        content: 'Building reusable components is essential for scalable React applications. This post covers patterns and best practices for creating maintainable component architectures.',
-        createdAt: new Date('2024-01-30'),
-      },
-      {
-        id: '5',
-        title: 'State Management Solutions',
-        content: 'Managing state in complex React applications can be challenging. Explore different state management solutions including React Context, Redux, and Zustand.',
-        createdAt: new Date('2024-02-05'),
-      },
-    ];
+    const fetchPosts = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        const response = await fetch('https://jsonplaceholder.typicode.com/posts');
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch posts');
+        }
+        
+        const data: ApiPost[] = await response.json();
+        
+        // Transform API data to match our PostProps interface
+        const transformedPosts: PostProps[] = data.map(post => ({
+          id: post.id,
+          title: post.title,
+          content: post.body,
+          userId: post.userId
+        }));
+        
+        setApiPosts(transformedPosts);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to fetch posts');
+        console.error('Error fetching posts:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-    // Simulate API loading delay
-    setTimeout(() => {
-      setPosts(samplePosts);
-      setLoading(false);
-    }, 1000);
+    fetchPosts();
   }, []);
 
-  // Handle new post submission
+  // Handle new post submission (for user-created posts)
   const handlePostSubmit = (postData: Omit<Post, 'id' | 'createdAt'>) => {
     const newPost: Post = {
       id: Date.now().toString(),
@@ -61,16 +56,27 @@ export default function Posts() {
       createdAt: new Date(),
     };
     
-    setPosts(prev => [newPost, ...prev]);
+    setUserPosts(prev => [newPost, ...prev]);
   };
 
-  // Handle post deletion
-  const handleDeletePost = (postId: string) => {
-    setPosts(prev => prev.filter(post => post.id !== postId));
+  // Handle post deletion (only for user-created posts)
+  const handleDeleteUserPost = (postId: string) => {
+    setUserPosts(prev => prev.filter(post => post.id !== postId));
   };
 
-  // Filter posts based on search term
-  const filteredPosts = posts.filter(post =>
+  // Handle API post deletion (simulated)
+  const handleDeleteApiPost = (postId: number) => {
+    setApiPosts(prev => prev.filter(post => post.id !== postId));
+  };
+
+  // Filter API posts based on search term
+  const filteredApiPosts = apiPosts.filter(post =>
+    post.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    post.content.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  // Filter user posts based on search term
+  const filteredUserPosts = userPosts.filter(post =>
     post.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
     post.content.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -126,82 +132,119 @@ export default function Posts() {
           </div>
         </div>
 
+        {/* Error State */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-8 max-w-2xl mx-auto">
+            <div className="flex items-center">
+              <svg className="w-5 h-5 text-red-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <p className="text-red-700">
+                <strong>Error:</strong> {error}
+              </p>
+            </div>
+            <Button
+              size="small"
+              shape="rounded-md"
+              variant="outline"
+              onClick={() => window.location.reload()}
+              className="mt-3"
+            >
+              Try Again
+            </Button>
+          </div>
+        )}
+
         {/* Loading State */}
         {loading && (
           <div className="flex justify-center items-center py-12">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-            <span className="ml-4 text-gray-600">Loading posts...</span>
+            <span className="ml-4 text-gray-600">Loading posts from API...</span>
           </div>
         )}
 
-        {/* Posts Grid */}
-        {!loading && (
+        {/* User Posts Section */}
+        {!loading && filteredUserPosts.length > 0 && (
+          <div className="mb-12">
+            <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center">Your Posts</h2>
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
+              {filteredUserPosts.map((post) => (
+                <div key={post.id} className="relative">
+                  <div className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300 border-l-4 border-green-500">
+                    <h3 className="text-xl font-semibold text-gray-800 mb-3">
+                      {post.title}
+                    </h3>
+                    <p className="text-gray-600 leading-relaxed mb-4">
+                      {post.content}
+                    </p>
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-gray-500">
+                        {post.createdAt.toLocaleDateString()}
+                      </span>
+                      <Button
+                        size="small"
+                        shape="rounded-md"
+                        variant="danger"
+                        onClick={() => handleDeleteUserPost(post.id)}
+                      >
+                        Delete
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* API Posts Section */}
+        {!loading && !error && (
           <>
-            {filteredPosts.length === 0 ? (
+            {filteredApiPosts.length === 0 ? (
               <div className="text-center py-12">
                 <svg className="mx-auto h-12 w-12 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
                 <h3 className="text-lg font-medium text-gray-900 mb-2">
-                  {searchTerm ? 'No posts found' : 'No posts yet'}
+                  No posts found
                 </h3>
                 <p className="text-gray-500 mb-4">
-                  {searchTerm 
-                    ? `No posts match "${searchTerm}". Try a different search term.`
-                    : 'Be the first to create a post and share your knowledge!'
-                  }
+                  No posts match "{searchTerm}". Try a different search term.
                 </p>
-                {searchTerm && (
-                  <Button
-                    size="medium"
-                    shape="rounded-md"
-                    variant="outline"
-                    onClick={() => setSearchTerm('')}
-                  >
-                    Clear Search
-                  </Button>
-                )}
+                <Button
+                  size="medium"
+                  shape="rounded-md"
+                  variant="outline"
+                  onClick={() => setSearchTerm('')}
+                >
+                  Clear Search
+                </Button>
               </div>
             ) : (
               <>
                 <div className="mb-6 text-center">
+                  <h2 className="text-2xl font-bold text-gray-800 mb-2">
+                    Community Posts
+                  </h2>
                   <p className="text-gray-600">
                     {searchTerm 
-                      ? `Found ${filteredPosts.length} post${filteredPosts.length !== 1 ? 's' : ''} matching "${searchTerm}"`
-                      : `Showing ${filteredPosts.length} post${filteredPosts.length !== 1 ? 's' : ''}`
+                      ? `Found ${filteredApiPosts.length} post${filteredApiPosts.length !== 1 ? 's' : ''} matching "${searchTerm}"`
+                      : `Showing ${filteredApiPosts.length} post${filteredApiPosts.length !== 1 ? 's' : ''} from our community`
                     }
                   </p>
                 </div>
 
-                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
-                  {filteredPosts.map((post) => (
-                    <div key={post.id} className="relative group">
-                      <Card
-                        title={post.title}
-                        content={post.content}
-                        className="h-full hover:shadow-xl transition-all duration-300 group-hover:scale-105"
-                      />
-                      
-                      {/* Post Actions */}
-                      <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                        <Button
-                          size="small"
-                          shape="rounded-full"
-                          variant="danger"
-                          onClick={() => handleDeletePost(post.id)}
-                          className="p-2"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                          </svg>
-                        </Button>
-                      </div>
-
-                      {/* Post Metadata */}
-                      <div className="mt-3 text-sm text-gray-500 text-center">
-                        <span>Posted on {post.createdAt.toLocaleDateString()}</span>
-                      </div>
-                    </div>
+                <div className="grid md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6 max-w-7xl mx-auto">
+                  {filteredApiPosts.map((post) => (
+                    <PostCard
+                      key={post.id}
+                      id={post.id}
+                      title={post.title}
+                      content={post.content}
+                      userId={post.userId}
+                      onDelete={handleDeleteApiPost}
+                      showActions={true}
+                    />
                   ))}
                 </div>
               </>
@@ -210,7 +253,7 @@ export default function Posts() {
         )}
 
         {/* Quick Actions */}
-        {!loading && posts.length > 0 && (
+        {!loading && !error && (filteredApiPosts.length > 0 || filteredUserPosts.length > 0) && (
           <div className="mt-12 text-center">
             <div className="bg-white p-6 rounded-lg shadow-md max-w-md mx-auto">
               <h3 className="text-lg font-semibold mb-4">Quick Actions</h3>
@@ -224,15 +267,26 @@ export default function Posts() {
                 >
                   Create New Post
                 </Button>
-                <Button
-                  size="medium"
-                  shape="rounded-md"
-                  variant="outline"
-                  onClick={() => window.location.href = '/home'}
-                  className="w-full"
-                >
-                  Back to Home
-                </Button>
+                <div className="flex space-x-2">
+                  <Button
+                    size="medium"
+                    shape="rounded-md"
+                    variant="outline"
+                    onClick={() => window.location.href = '/home'}
+                    className="flex-1"
+                  >
+                    Back to Home
+                  </Button>
+                  <Button
+                    size="medium"
+                    shape="rounded-md"
+                    variant="secondary"
+                    onClick={() => window.location.reload()}
+                    className="flex-1"
+                  >
+                    Refresh Posts
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
