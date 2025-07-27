@@ -20,7 +20,7 @@ const UsersPage: React.FC<UsersPageProps> = ({ users }) => {
 };
 
 // Fetch data at build time
-export const getStaticProps = async () => {
+export async function getStaticProps() {
   try {
     const res = await fetch('https://jsonplaceholder.typicode.com/users');
     if (!res.ok) {
@@ -32,7 +32,7 @@ export const getStaticProps = async () => {
       props: {
         users,
       },
-      revalidate: 60, // Optional: Re-generate the page every 60 seconds
+      revalidate: 60,
     };
   } catch (error) {
     console.error('Failed to fetch users:', error);
