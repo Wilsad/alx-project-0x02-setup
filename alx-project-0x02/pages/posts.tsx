@@ -5,48 +5,89 @@ import Button from '@/components/common/Button';
 import PostModal from '@/components/common/PostModal';
 import { type Post, type ApiPost, type PostProps } from '@/interfaces';
 
-export default function Posts() {
-  const [apiPosts, setApiPosts] = useState<PostProps[]>([]);
+export async function getStaticProps() {
+  try {
+    const response = await fetch('https://jsonplaceholder.typicode.com/posts');
+    
+    if (!response.ok) {
+      throw new Error('Failed to fetch posts');
+    }
+    
+    const data = await response.json();
+    
+    // Transform API data to match our PostProps interface
+    const initialPosts = data.map((post: any) => ({
+      id: post.id,
+      title: post.title,
+      content: post.body,
+      userId: post.userId
+    }));
+
+    return {
+      props: {
+        initialPosts,
+      },
+      // Re-generate the page at most once every hour
+      revalidate: 3600,
+    };
+  } catch (error) {
+    console.error('Error fetching posts in getStaticProps:', error);
+    return {
+      props: {
+        initialPosts: [],
+      },
+      // Try again in 1 minute if there was an error
+      revalidate: 60,
+    };
+  }
+}
+
+export default function Posts({ initialPosts = [] }: { initialPosts?: Array<{ id: number; title: string; content: string; userId: number }> }) {
+  const [apiPosts, setApiPosts] = useState<PostProps[]>(initialPosts);
   const [userPosts, setUserPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch posts from JSONPlaceholder API
+  // Initialize with server-side props or fetch client-side if needed
   useEffect(() => {
-    const fetchPosts = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        
-        const response = await fetch('https://jsonplaceholder.typicode.com/posts');
-        
-        if (!response.ok) {
-          throw new Error('Failed to fetch posts');
+    if (apiPosts.length === 0) {
+      const fetchPosts = async () => {
+        try {
+          setLoading(true);
+          setError(null);
+          
+          const response = await fetch('https://jsonplaceholder.typicode.com/posts');
+          
+          if (!response.ok) {
+            throw new Error('Failed to fetch posts');
+          }
+          
+          const data: ApiPost[] = await response.json();
+          
+          // Transform API data to match our PostProps interface
+          const transformedPosts: PostProps[] = data.map(post => ({
+            id: post.id,
+            title: post.title,
+            content: post.body,
+            userId: post.userId
+          }));
+          
+          setApiPosts(transformedPosts);
+        } catch (err) {
+          setError(err instanceof Error ? err.message : 'Failed to fetch posts');
+          console.error('Error fetching posts:', err);
+        } finally {
+          setLoading(false);
         }
-        
-        const data: ApiPost[] = await response.json();
-        
-        // Transform API data to match our PostProps interface
-        const transformedPosts: PostProps[] = data.map(post => ({
-          id: post.id,
-          title: post.title,
-          content: post.body,
-          userId: post.userId
-        }));
-        
-        setApiPosts(transformedPosts);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to fetch posts');
-        console.error('Error fetching posts:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
+      };
 
-    fetchPosts();
-  }, []);
+      fetchPosts();
+    } else {
+      setLoading(false);
+    }
+  }, [apiPosts.length]);
 
   // Handle new post submission (for user-created posts)
   const handlePostSubmit = (postData: Omit<Post, 'id' | 'createdAt'>) => {
