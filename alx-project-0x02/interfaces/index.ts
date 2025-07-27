@@ -85,3 +85,8 @@ export interface User {
       bs: string;
     };
   }
+
+  // UserCard component props interface
+  export interface UserProps {
+    user: ApiUser;
+  }
