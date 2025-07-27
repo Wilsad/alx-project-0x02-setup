@@ -1,4 +1,4 @@
-import Header from '../components/layout/Header';
+import Header from '@/components/layout/Header';
 import Link from 'next/link';
 
 export default function Index() {
